@@ -1,0 +1,53 @@
+# Copies the images used by the apps into git.example.com/mirror/... (see
+# .forgejo/scripts/mirror-images.sh). Runs on update PRs (so a new version is copied
+# before it's merged), on pushes to main, nightly as a catch-all, and on demand.
+# Runner: apps/forgejo-runner ("host" backend: shell steps only, no JS actions).
+name: Mirror images
+
+on:
+  push:
+    branches: [main]
+    paths: ["apps/**", ".forgejo/**"]
+  pull_request:
+    paths: ["apps/**"]
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+
+env:
+  # Directories whose images are mirrored
+  IMAGE_DIRS: apps
+  CRANE_VERSION: v0.22.1
+  CRANE_SHA256: 0ab7a1d6932a213aed964ce97666c3077fe691c8606413674a8b3e0b9ec4cda0
+
+jobs:
+  mirror:
+    runs-on: host
+    timeout-minutes: 45
+    steps:
+      - name: Check out
+        env:
+          MIRROR_TOKEN: ${{ secrets.MIRROR_TOKEN }}
+        run: |
+          git init -q src
+          git -C src fetch -q --depth 1 "https://ci-bot:${MIRROR_TOKEN}@git.example.com/${GITHUB_REPOSITORY}.git" "${GITHUB_REF}"
+          git -C src checkout -q FETCH_HEAD
+          git -C src log -1 --format='%h %s'
+
+      - name: Install crane
+        run: |
+          wget -qO crane.tgz "https://github.com/google/go-containerregistry/releases/download/${CRANE_VERSION}/go-containerregistry_Linux_x86_64.tar.gz"
+          echo "${CRANE_SHA256}  crane.tgz" | sha256sum -c -
+          tar -xzf crane.tgz crane && rm crane.tgz && ./crane version
+
+      - name: Copy images
+        env:
+          MIRROR_TOKEN: ${{ secrets.MIRROR_TOKEN }}
+          DOCKER_CONFIG: ${{ github.workspace }}/.docker
+        run: |
+          echo "${MIRROR_TOKEN}" | ./crane auth login git.example.com -u ci-bot --password-stdin
+          cd src && CRANE=../crane .forgejo/scripts/mirror-images.sh ${IMAGE_DIRS}
+
+      - name: Clean up
+        if: always()
+        run: rm -rf .docker src crane

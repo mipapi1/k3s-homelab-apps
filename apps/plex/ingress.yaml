@@ -1,0 +1,16 @@
+# https://plex.example.com -> proxy (TLS) -> Traefik -> Plex. No Authelia in front: Plex
+# has its own sign-in, and its apps can't do a web login.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: plex
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: plex.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: {name: plex, port: {number: 32400}}

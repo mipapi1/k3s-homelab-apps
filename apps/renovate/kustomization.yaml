@@ -1,0 +1,6 @@
+# Renovate: opens PRs in Forgejo for new image versions. See README.md.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - external-secret.yaml
+  - renovate.yaml

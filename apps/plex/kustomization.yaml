@@ -1,0 +1,7 @@
+# Plex with Intel Quick Sync hardware transcoding (needs apps/intel-gpu). See README.md.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - storage.yaml
+  - plex.yaml
+  - ingress.yaml

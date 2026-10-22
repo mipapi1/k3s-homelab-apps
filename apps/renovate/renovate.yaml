@@ -1,0 +1,56 @@
+# Checks the images in the cluster repo against their registries every night and opens
+# one PR per update (rules: renovate.json in the repo root). Nothing is merged
+# automatically.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: renovate
+spec:
+  schedule: "0 6 * * *"
+  timeZone: Etc/UTC
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels: {app: renovate}
+        spec:
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          securityContext:
+            runAsUser: 12021
+            runAsGroup: 0
+            runAsNonRoot: true
+            seccompProfile: {type: RuntimeDefault}
+          containers:
+            - name: renovate
+              image: ghcr.io/renovatebot/renovate:44.145.1@sha256:6f1f3e2d9d0c3f99aa1f61f7509d302185de7deb173ac8c5ff88a5ce283ec435
+              env:
+                - {name: TZ, value: Etc/UTC}
+                - {name: RENOVATE_PLATFORM, value: forgejo}
+                - {name: RENOVATE_ENDPOINT, value: "https://git.example.com/api/v1/"}
+                - {name: RENOVATE_REPOSITORIES, value: you/cluster}
+                - {name: RENOVATE_GIT_AUTHOR, value: "ci-bot <ci-bot@example.com>"}
+                # The repo has its renovate.json; no onboarding PR
+                - {name: RENOVATE_ONBOARDING, value: "false"}
+                - {name: RENOVATE_REQUIRE_CONFIG, value: required}
+                - {name: RENOVATE_BASE_DIR, value: /tmp/renovate}
+                - {name: LOG_LEVEL, value: info}
+              envFrom:
+                - secretRef: {name: renovate}
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities: {drop: [ALL]}
+              resources:
+                requests: {cpu: 100m, memory: 256Mi}
+                limits: {memory: 1Gi}
+              volumeMounts:
+                - {name: tmp, mountPath: /tmp}
+          volumes:
+            # Repo clone and caches: rebuilt on every run
+            - name: tmp
+              emptyDir: {sizeLimit: 2Gi}

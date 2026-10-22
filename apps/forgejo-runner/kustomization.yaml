@@ -1,0 +1,10 @@
+# Forgejo Actions runner. See README.md.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - external-secret.yaml
+  - runner.yaml
+configMapGenerator:
+  - name: forgejo-runner-config
+    files:
+      - config.yml

@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: plex
+spec:
+  replicas: 1
+  # The database is on a ReadWriteOnce volume: never two pods at once
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: plex}
+  template:
+    metadata:
+      labels: {app: plex, homelab/disk-heavy: "true"}
+    spec:
+      # Disk-heavy (database on Longhorn): prefer a node without another disk-heavy
+      # pod from any app, so they spread over the nodes instead of piling up on one.
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                namespaceSelector: {}
+                labelSelector:
+                  matchLabels: {homelab/disk-heavy: "true"}
+      containers:
+        - name: plex
+          image: lscr.io/linuxserver/plex:1.43.4.10903-e5521bd8c-ls327
+          env:
+            - {name: PUID, value: "1000"}
+            - {name: PGID, value: "1000"}
+            - {name: TZ, value: Etc/UTC}
+            - {name: VERSION, value: docker}
+          ports:
+            - {name: plex, containerPort: 32400}
+          readinessProbe:
+            httpGet: {path: /identity, port: 32400}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 200m, memory: 1Gi}
+            # Intel iGPU (Quick Sync) for hardware transcoding, from the intel-gpu plugin.
+            # Only schedules on nodes that have one.
+            limits: {memory: 4Gi, gpu.intel.com/i915: "1"}
+          volumeMounts:
+            - {name: config, mountPath: /config}
+            - {name: media, mountPath: /data}
+            - {name: transcode, mountPath: /transcode}
+      volumes:
+        - name: config
+          persistentVolumeClaim: {claimName: plex-config}
+        - name: media
+          persistentVolumeClaim: {claimName: media-library}
+        # Temporary transcode files: node-local scratch space, not backed up
+        - name: transcode
+          emptyDir: {sizeLimit: 20Gi}
+---
+# Port 32400 on every node's IP (k3s ServiceLB): local clients find Plex directly, and a
+# router port forward to one node gives remote access. The web UI is also on the ingress.
+apiVersion: v1
+kind: Service
+metadata:
+  name: plex
+spec:
+  type: LoadBalancer
+  selector: {app: plex}
+  ports:
+    - {name: plex, port: 32400, targetPort: 32400}

@@ -1,0 +1,96 @@
+# https://gethomepage.dev/configs/services/
+# siteMonitor: Homepage checks the URL itself (status dot). namespace + podSelector:
+# pod status, CPU and memory from the cluster (rbac.yaml).
+- Infrastructure:
+    # One entry per Proxmox node; all ask the same host (it answers for the whole cluster)
+    - pve1:
+        icon: proxmox.png
+        href: https://pve1.example.com
+        widget:
+          type: proxmox
+          url: https://192.168.10.11:8006
+          username: "{{HOMEPAGE_VAR_PROXMOX_TOKEN_ID}}"
+          password: "{{HOMEPAGE_VAR_PROXMOX_TOKEN_SECRET}}"
+          node: pve1
+    - pve2:
+        icon: proxmox.png
+        href: https://pve2.example.com
+        widget:
+          type: proxmox
+          url: https://192.168.10.11:8006
+          username: "{{HOMEPAGE_VAR_PROXMOX_TOKEN_ID}}"
+          password: "{{HOMEPAGE_VAR_PROXMOX_TOKEN_SECRET}}"
+          node: pve2
+
+- Platform:
+    - Argo CD:
+        icon: argo-cd.png
+        href: https://argocd.example.com
+        description: GitOps
+        siteMonitor: http://argocd-server.argocd.svc/healthz
+        namespace: argocd
+        podSelector: app.kubernetes.io/name=argocd-server
+    - Forgejo:
+        icon: forgejo.png
+        href: https://git.example.com
+        description: Git
+        siteMonitor: https://git.example.com/api/healthz
+        namespace: forgejo
+        podSelector: app=forgejo
+    - Vault:
+        icon: vault.png
+        href: https://vault.example.com
+        description: Secrets
+        # 503 when sealed
+        siteMonitor: https://vault.example.com/v1/sys/health
+    - Authelia:
+        icon: authelia.png
+        href: https://auth.example.com
+        description: Login
+        siteMonitor: https://auth.example.com/api/health
+        namespace: authelia
+        podSelector: app=authelia
+    - Uptime Kuma:
+        icon: uptime-kuma.png
+        href: https://uptime.example.com
+        description: Up/down alerts
+        namespace: uptime
+        podSelector: app=uptime-kuma
+    - Grafana:
+        icon: grafana.png
+        href: https://grafana.example.com
+        description: Metrics and alerts
+        # No siteMonitor: only Traefik may reach Grafana (it trusts the login header)
+        namespace: monitoring
+        podSelector: app.kubernetes.io/name=grafana
+        # Live numbers straight from VictoriaMetrics
+        widget:
+          type: prometheusmetric
+          url: http://vmsingle-vm.monitoring.svc:8428
+          refreshInterval: 30000
+          metrics:
+            - label: Alerts
+              query: count(ALERTS{alertstate="firing",severity=~"warning|critical"}) or vector(0)
+            - label: CPU
+              query: 1 - avg(rate(node_cpu_seconds_total{mode="idle",job="node-exporter"}[5m]))
+              format: {type: percent, scale: 100, options: {maximumFractionDigits: 0}}
+            - label: Memory
+              query: 1 - sum(node_memory_MemAvailable_bytes{job="node-exporter"}) / sum(node_memory_MemTotal_bytes{job="node-exporter"})
+              format: {type: percent, scale: 100, options: {maximumFractionDigits: 0}}
+            - label: Restarts 24h
+              query: sum(increase(kube_pod_container_status_restarts_total[24h])) or vector(0)
+              format: {type: number, options: {maximumFractionDigits: 0}}
+    - Headlamp:
+        icon: headlamp.png
+        href: https://headlamp.example.com
+        description: Cluster admin
+        namespace: headlamp
+        podSelector: app.kubernetes.io/name=headlamp
+
+- Apps:
+    - Plex:
+        icon: plex.png
+        href: https://plex.example.com
+        siteMonitor: https://plex.example.com/identity
+        namespace: plex
+        podSelector: app=plex

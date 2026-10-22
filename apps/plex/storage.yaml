@@ -1,0 +1,45 @@
+# Plex's database and metadata: Longhorn (replicated, backed up)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: plex-config
+  annotations:
+    # Never let Argo CD delete the data because the claim disappeared from git
+    argocd.argoproj.io/sync-options: Prune=false
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: longhorn
+  resources: {requests: {storage: 20Gi}}
+---
+# The media library on the NAS, mounted as is (an existing share, not a provisioned volume)
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: media-library
+spec:
+  capacity:
+    storage: 6Ti
+  accessModes: [ReadWriteMany]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  mountOptions:
+    - nfsvers=3
+    - hard
+  nfs:
+    server: 192.168.25.10
+    path: /volume1/media
+  claimRef:
+    namespace: plex
+    name: media-library
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: media-library
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: ""
+  volumeName: media-library
+  resources:
+    requests:
+      storage: 6Ti

@@ -1,0 +1,14 @@
+# https://forgejo.org/docs/latest/admin/actions/runner-installation/
+log:
+  level: info
+runner:
+  file: /data/.runner
+  capacity: 1
+  timeout: 1h
+  # Jobs run as plain processes inside this pod ("host" backend): no Docker daemon and no
+  # privileged containers. Workflows use `runs-on: host` and shell steps only.
+  labels: ["host:host"]
+cache:
+  enabled: false
+host:
+  workdir_parent: /data/work

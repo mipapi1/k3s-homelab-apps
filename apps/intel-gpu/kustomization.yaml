@@ -1,0 +1,9 @@
+# Intel GPU device plugin: makes each node's (passed-through) iGPU schedulable as
+# gpu.intel.com/i915 (apps/plex requests it for hardware transcoding). The nodes need GPU
+# drivers: role igpu of ansible-k3s-homelab. Upstream manifest:
+# https://github.com/intel/intel-device-plugins-for-kubernetes/tree/main/deployments/gpu_plugin
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: intel-gpu
+resources:
+  - gpu-plugin.yaml

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Image updates for the apps (Renovate CronJob in apps/renovate). Each update is a PR; the mirror workflow copies the new image to git.example.com before it's merged.",
+  "extends": ["config:recommended"],
+  "enabledManagers": ["kubernetes"],
+  "kubernetes": {
+    "managerFilePatterns": ["/^apps/.+\\.yaml$/"]
+  },
+  "prHourlyLimit": 0,
+  "packageRules": [
+    {
+      "description": "linuxserver.io tags: <app version>[-<build id>]-ls<image revision>. Ignore the build id, compare the version, then the revision.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["lscr.io/linuxserver/**"],
+      "versioning": "regex:^v?(?<major>\\d+)\\.(?<minor>\\d+)(?:\\.(?<patch>\\d+))?(?:\\.(?<build>\\d+))?(?:[-_][^-]+)?-ls(?<revision>\\d+)$"
+    }
+  ]
+}

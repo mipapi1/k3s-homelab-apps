@@ -1,0 +1,36 @@
+{
+  "defaults": {
+    "interval": 60,
+    "retryInterval": 60,
+    "maxretries": 2,
+    "timeout": 48,
+    "resendInterval": 60
+  },
+  "groups": [
+    {
+      "name": "Apps",
+      "monitors": [
+        {"name": "Plex", "url": "https://plex.example.com/identity", "expiryNotification": true, "domainExpiryNotification": true}
+      ]
+    },
+    {
+      "name": "Platform",
+      "monitors": [
+        {"name": "Authelia", "url": "https://auth.example.com/api/health"},
+        {"name": "Forgejo", "url": "https://git.example.com/api/healthz"},
+        {"name": "Forgejo database", "type": "port", "hostname": "forgejo-db-rw.forgejo.svc.cluster.local", "port": 5432},
+        {"name": "Argo CD", "url": "https://argocd.example.com/healthz"},
+        {"name": "Vault (unsealed)", "url": "https://vault.example.com/v1/sys/health"}
+      ]
+    },
+    {
+      "name": "Infrastructure",
+      "monitors": [
+        {"name": "DNS (router)", "type": "dns", "hostname": "plex.example.com", "dns_resolve_server": "192.168.20.1", "port": 53, "dns_resolve_type": "A"},
+        {"name": "NAS (NFS)", "type": "port", "hostname": "192.168.25.10", "port": 2049},
+        {"name": "Proxmox host 1", "type": "port", "hostname": "192.168.10.11", "port": 8006},
+        {"name": "Proxmox host 2", "type": "port", "hostname": "192.168.10.12", "port": 8006}
+      ]
+    }
+  ]
+}

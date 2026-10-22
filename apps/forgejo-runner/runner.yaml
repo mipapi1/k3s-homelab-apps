@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: forgejo-runner
+spec:
+  replicas: 1
+  # One runner identity: never two pods at once
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: forgejo-runner}
+  template:
+    metadata:
+      labels: {app: forgejo-runner}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      initContainers:
+        # Writes /data/.runner from the shared secret (registration itself is idempotent
+        # and done once in Forgejo), so the pod needs no persistent state
+        - name: runner-file
+          image: code.forgejo.org/forgejo/runner:13.2.0@sha256:ca3d5eea46004789a175d1369eec6829d3ea9bfbe2011a06625b4bdaa55f7552
+          command: [sh, -c]
+          args:
+            - >-
+              cd /data && forgejo-runner create-runner-file --connect
+              --instance https://git.example.com --name k3s-runner --secret "$RUNNER_SECRET"
+          env:
+            - name: RUNNER_SECRET
+              valueFrom: {secretKeyRef: {name: forgejo-runner, key: secret}}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+      containers:
+        - name: runner
+          image: code.forgejo.org/forgejo/runner:13.2.0@sha256:ca3d5eea46004789a175d1369eec6829d3ea9bfbe2011a06625b4bdaa55f7552
+          command: [forgejo-runner, daemon, --config, /etc/forgejo-runner/config.yml]
+          env:
+            - {name: HOME, value: /data}
+            - {name: TZ, value: Etc/UTC}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {memory: 1Gi}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: config, mountPath: /etc/forgejo-runner, readOnly: true}
+      volumes:
+        # Runner identity and job workspaces: rebuilt on every start
+        - name: data
+          emptyDir: {sizeLimit: 5Gi}
+        - name: config
+          configMap: {name: forgejo-runner-config}
