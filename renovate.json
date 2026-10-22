@@ -1,50 +1,102 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "Version updates for this repo: images in apps/, and CI. image-mirror/renovate.json is the example for your own deployment repo; this file is for the repo itself.",
-  "extends": ["config:recommended"],
-  "enabledManagers": ["kubernetes", "github-actions", "custom.regex"],
+  "extends": [
+    "config:recommended"
+  ],
+  "schedule": [
+    "* 0-5 * * 1"
+  ],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "labels": [
+    "dependencies"
+  ],
+  "automerge": false,
+  "dependencyDashboard": true,
+  "enabledManagers": [
+    "kubernetes",
+    "github-actions",
+    "custom.regex"
+  ],
   "kubernetes": {
-    "managerFilePatterns": ["/^apps/.+\\.yaml$/"]
+    "managerFilePatterns": [
+      "/^apps/.+\\.yaml$/"
+    ]
   },
   "customManagers": [
     {
       "description": "kubeconform release used by CI (the checksum next to it has to be updated in the same PR)",
       "customType": "regex",
-      "managerFilePatterns": ["/^\\.github/workflows/.+\\.ya?ml$/"],
-      "matchStrings": ["KUBECONFORM_VERSION: (?<currentValue>v[^\\s]+)"],
+      "managerFilePatterns": [
+        "/^\\.github/workflows/.+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "KUBECONFORM_VERSION: (?<currentValue>v[^\\s]+)"
+      ],
       "datasourceTemplate": "github-releases",
       "depNameTemplate": "yannh/kubeconform"
     },
     {
       "description": "Container images run by CI steps (docker run)",
       "customType": "regex",
-      "managerFilePatterns": ["/^\\.github/workflows/.+\\.ya?ml$/"],
-      "matchStrings": ["docker run [^\\n]*?(?<depName>(?:ghcr\\.io|docker\\.io)/[a-z0-9.\\-/]+):(?<currentValue>v?[0-9][^\\s@]*)"],
+      "managerFilePatterns": [
+        "/^\\.github/workflows/.+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "docker run [^\\n]*?(?<depName>(?:ghcr\\.io|docker\\.io)/[a-z0-9.\\-/]+):(?<currentValue>v?[0-9][^\\s@]*)"
+      ],
       "datasourceTemplate": "docker"
     }
   ],
   "packageRules": [
     {
+      "description": "GitHub Actions: one PR for all minor and patch updates",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "groupName": "GitHub Actions"
+    },
+    {
       "description": "linuxserver.io tags: <app version>[-<build id>]-ls<image revision>. Ignore the build id, compare the version, then the revision.",
-      "matchDatasources": ["docker"],
-      "matchPackageNames": ["lscr.io/linuxserver/**"],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "lscr.io/linuxserver/**"
+      ],
       "versioning": "regex:^v?(?<major>\\d+)\\.(?<minor>\\d+)(?:\\.(?<patch>\\d+))?(?:\\.(?<build>\\d+))?(?:[-_][^-]+)?-ls(?<revision>\\d+)$"
     },
     {
       "description": "Major app updates can need config or data migrations: wait for approval on the Dependency Dashboard",
-      "matchManagers": ["kubernetes"],
-      "matchUpdateTypes": ["major"],
+      "matchManagers": [
+        "kubernetes"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
       "dependencyDashboardApproval": true
     },
     {
       "description": "kubeconform's checksum can't be updated automatically: open these only on request, then add the new SHA-256 by hand",
-      "matchPackageNames": ["yannh/kubeconform"],
+      "matchPackageNames": [
+        "yannh/kubeconform"
+      ],
       "dependencyDashboardApproval": true
     },
     {
       "description": "New runner images (ubuntu-XX.04) can break the CI steps: wait for approval on the Dependency Dashboard",
-      "matchManagers": ["github-actions"],
-      "matchDepNames": ["ubuntu"],
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchDepNames": [
+        "ubuntu"
+      ],
       "dependencyDashboardApproval": true
     }
   ]
